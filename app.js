@@ -32,6 +32,8 @@ let optionsDate = {
  *  {dateStyle: 'short', timeStyle: 'short'}
  */
 
+const log = (...value) => console.log(...value)
+
 const getFormattedDate = createdAt => new Intl
   .DateTimeFormat("pt-BR", optionsDate)
   .format(createdAt.toDate()).replace(',', ' ')
@@ -39,46 +41,52 @@ const getFormattedDate = createdAt => new Intl
 
 const sanitize = string => DOMPurify.sanitize(string)
 
-const renderGamesList = querySnapshot => {
-  if (!querySnapshot.metadata.hasPendingWrites) {
-    gamesList.innerHTML = ''
+const renderGame = (docChange) => {
+  const [id, { title, developedBy, createdAt }] = [docChange.doc.id, docChange.doc.data()]
 
-    const games = querySnapshot.docs.map(doc => {
-      const [id, { title, developedBy, createdAt }] = [doc.id, doc.data()]
+  const liGame = document.createElement('li')
+  liGame.setAttribute('data-id', id)
+  liGame.setAttribute('class', 'my-4')
 
-      const liGame = document.createElement('li')
-      liGame.setAttribute('data-id', id)
-      liGame.setAttribute('class', 'my-4')
+  const h5 = document.createElement('h5')
+  h5.textContent = sanitize(title)
 
-      const h5 = document.createElement('h5')
-      h5.textContent = sanitize(title)
+  const ul = document.createElement('ul')
 
-      const ul = document.createElement('ul')
+  const liDevelopedBy = document.createElement('li')
+  liDevelopedBy.textContent = `Desenvolvido pot ${sanitize(developedBy)}`
 
-      const liDevelopedBy = document.createElement('li')
-      liDevelopedBy.textContent = `Desenvolvido pot ${sanitize(developedBy)}`
-
-      if (createdAt) {
-        const liDate = document.createElement('li')
-        liDate.textContent = `Adicionado no banco em ${getFormattedDate(createdAt)}`
-        ul.append(liDate)
-      }
-
-      const button = document.createElement('button')
-      button.textContent = 'Remover'
-      button.setAttribute('data-remove', id)
-      button.setAttribute('class', 'btn btn-danger btn-sm')
-
-      ul.append(liDevelopedBy)
-      liGame.append(h5, ul, button)
-
-      return liGame
-    })
-
-    games.forEach(game => gamesList.append(game))
+  if (createdAt) {
+    const liDate = document.createElement('li')
+    liDate.textContent = `Adicionado no banco em ${getFormattedDate(createdAt)}`
+    ul.append(liDate)
   }
+
+  const button = document.createElement('button')
+  button.textContent = 'Remover'
+  button.setAttribute('data-remove', id)
+  button.setAttribute('class', 'btn btn-danger btn-sm')
+
+  ul.append(liDevelopedBy)
+  liGame.append(h5, ul, button)
+  gamesList.append(liGame)
 }
 
+const renderGamesList = snapShot => {
+  if (snapShot.metadata.hasPendingWrites) {
+    return
+  }
+
+  snapShot.docChanges().forEach(docChange => {
+    if (docChange.type === "removed") {
+      const liGame = document.querySelector(`[data-id="${docChange.doc.id}"]`)
+      liGame.remove()
+      return
+    }
+
+    renderGame(docChange)
+  })
+}
 
 const to = promise => promise
   .then(result => [null, result])
